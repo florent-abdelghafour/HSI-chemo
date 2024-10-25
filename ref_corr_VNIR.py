@@ -37,6 +37,7 @@ HSIreader = HsiReader(dataset)
 
 # Loop through each hyperspectral image in the dataset
 for idx in range(len(dataset)):
+   if idx==0: 
     
     HSIreader.read_image(idx) #reads without loading! to get metadata
     metadata = HSIreader.current_metadata

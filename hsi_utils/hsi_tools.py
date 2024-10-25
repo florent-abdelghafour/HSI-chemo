@@ -89,7 +89,10 @@ class HsiReader:
             self.current_metadata = None
             self.current_image = None
             self.current_idx = None
-    def read_subimage(self, bbox):
+            
+            
+            
+    def extract_subimage(self, bbox):
         if not self.current_image:
             raise ValueError("No current image loaded. Call `read_image` first.")
         
@@ -112,6 +115,30 @@ class HsiReader:
         except Exception as e:
             print(f"Error reading subimage: {e}")
             return None
+        
+    def extract_pixels(self, coords):
+        """
+        Reads the spectral values at specified pixel coordinates.
+        Args:
+            coords (list of tuples): A list of (row, col) tuples representing pixel coordinates.
+        Returns:
+            list: A list of spectra corresponding to the provided coordinates.
+        """
+        if self.current_image is None:
+            print("No image loaded. Please call `read_image` first.")
+            return None
+        
+        spectra = []
+        
+        for row, col in coords:
+            try:
+                # Extract the spectral data for the pixel at (row, col)
+                spectrum = self.current_image.read_pixel(row, col)
+                spectra.append(spectrum)
+            except Exception as e:
+                print(f"Error reading pixel at ({row}, {col}): {e}")
+        
+        return spectra
         
         
         
