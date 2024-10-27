@@ -44,8 +44,6 @@ min_kernel_size=500
 
 # Loop through each hyperspectral image in the dataset
 for idx in range(len(dataset)):
-   if idx==0: 
-    
     HSIreader.read_image(idx) #reads without loading! to get metadata
     metadata = HSIreader.current_metadata
     
@@ -88,7 +86,7 @@ for idx in range(len(dataset)):
     labeled_image = label(filled_binary_image)
     labeled_image= label(remove_small_objects(labeled_image > 0, min_size=min_kernel_size))
     
-    color_image = color_labels(labeled_image)
+    # color_image = color_labels(labeled_image)
         
     # plt.figure()
     # plt.imshow(color_image)
@@ -102,9 +100,38 @@ for idx in range(len(dataset)):
     coordinates = np.argwhere(reference_mask)
     y_min, x_min = coordinates.min(axis=0)  
     y_max, x_max = coordinates.max(axis=0)  
-    # bbox_spectralon = (x_min, y_min, x_max, y_max)
-    # spectralon = hsi[start_row:end_row, :, :]
+    bbox_spectralon = (x_min, y_min, x_max, y_max)
+    spectralon = hsi[y_min:y_max, :, :]
+    avg_spectralon = np.sum(spectralon, axis=0)
+    
+    reference_mask=np.repeat(reference_mask[:, :, np.newaxis], hsi.shape[2], axis=2)
+    num_valid_pixels = np.sum(reference_mask, axis=0)
+    avg_spectralon=avg_spectralon / num_valid_pixels    
+    avg_spectralon[num_valid_pixels == 0]  = np.nan 
+    
+    hypercube_slices = []
+    for start_row in range(0, n_rows, slice_step):
+       
+        end_row = min(start_row + slice_step, n_rows)
+        subcube = hsi[start_row:end_row, :, :]
+        subcube =subcube/ avg_spectralon[np.newaxis, :, :]     
+        subcube_scaled = (subcube * 65536).astype(np.uint16) 
+        hypercube_slices.append(subcube_scaled)
+        
+    corrected_hypercube = np.concatenate(hypercube_slices, axis=0)
+ 
    
+    # save new corrected image in new folder with corresponding header
+    base_filename = os.path.splitext(os.path.basename(HSIreader.dataset[idx]['data']))[0]
+    save_path = os.path.join(save_folder, f"{base_filename}_ref.hdr")
+    header_path = HSIreader.dataset[idx]['hdr']
+    header = envi.read_envi_header(header_path)
+    
+    envi.save_image(save_path, corrected_hypercube,ext='ref', dtype='uint16', force=True, metadata=header) 
+
+
+    HSIreader.clear_cache()
+    print(f"img_{idx} corrected and saved : {save_path} ")
    
     
     

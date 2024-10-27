@@ -61,25 +61,38 @@ for idx in range(len(dataset)):
     pca_scores = pca.fit_transform(spectral_samples)
     pca_loadings =pca.components_.T*np.sqrt(pca.explained_variance_)
     
+    
+    default_colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
+
+    for i in range(np.shape(pca_loadings)[1]):
+        plt.figure()
+        plt.plot(wv,pca_loadings[:,i],default_colors[i])
+        plt.xlabel("Wavelength (nm)")
+        plt.ylabel("Reflectance")  
+        lab= 'PC'+str(i+1)
+        plt.title(lab) 
+        plt.grid()  
+    plt.show(block=False)
+    
    
     #project back the laodings on the entire hsi to get scores
     score_img = HSIreader.project_pca_scores(pca_loadings)
    
-    # for s in range(pca_loadings.shape[1]):
-    #     plt.figure()
-    #     plt.imshow(score_img[:,:,s])
-    #     plt.title(f'Score image PC{s+1}')
-    #     plt.axis('off')
-    #     plt.show(block=False)
+    for s in range(pca_loadings.shape[1]):
+        plt.figure()
+        plt.imshow(score_img[:,:,s])
+        plt.title(f'Score image PC{s+1}')
+        plt.axis('off')
+        plt.show(block=False)
     
     # automatic thresholding with Ostu method (histogram based)
     score_pc_ref = score_img[:,:,0]   
     thresholds = threshold_multiotsu(score_pc_ref, classes=3)
     segmented = np.digitize(score_pc_ref, bins=thresholds)
     
-    # plt.figure()
-    # plt.imshow(segmented)
-    # plt.show(block=False)
+    plt.figure()
+    plt.imshow(segmented)
+    plt.show(block=False)
     
     #get a labelled image 
     labeled_image = label(segmented)
@@ -88,6 +101,7 @@ for idx in range(len(dataset)):
     # plt.figure()
     # plt.imshow(labeled_image)
     # plt.show(block=False)
+
     
     #fill holes in small object
     binary_image = labeled_image > 0
@@ -105,7 +119,7 @@ for idx in range(len(dataset)):
     # plt.imshow(labeled_image)
     # plt.show(block=False)
     
-    color_image = color_labels(labeled_image)
+    # color_image = color_labels(labeled_image)
         
     # plt.figure()
     # plt.imshow(color_image)
@@ -126,12 +140,7 @@ for idx in range(len(dataset)):
             
     hypercube = hypercube / avg_spectralon[np.newaxis, :, :]     
     hypercube_scaled = (hypercube * 65536).astype(np.uint16)  
-    
-    
-    
-    #replace hsi by corrected image
-    HSIreader.hypercube = hypercube_scaled
-    
+
     
     # save new corrected image in new folder with corresponding header
     base_filename = os.path.splitext(os.path.basename(HSIreader.dataset[idx]['data']))[0]
