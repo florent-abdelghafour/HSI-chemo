@@ -83,9 +83,9 @@ for idx in range(len(dataset)):
     
     color_image = color_labels(labeled_image)
     
-    plt.figure()
-    plt.imshow(color_image)
-    plt.show()
+    # plt.figure()
+    # plt.imshow(color_image)
+    # plt.show()
     
     
     regions = regionprops(labeled_image)
@@ -129,25 +129,85 @@ for idx in range(len(dataset)):
 
     object_data.sort(key=lambda x: (x['centroid'][1], x['centroid'][0])) 
     
-    centroids = [obj['centroid'] for obj in object_data]
-    centroids_sorted = sorted(centroids, key=lambda c: (c[0], c[1]))
+    # Set your vertical distance tolerance
+    vertical_tolerance = 500  # Adjust this value based on your specific needs
 
-    # Calculate the unique x-coordinates to determine columns
-    x_coords = sorted(set(int(c[1]) for c in centroids_sorted))
-    num_cols = len(x_coords)
+    # Initialize a list to store rows of centroids
+rows_of_centroids = []
 
-    # Determine the three middle columns
-    if num_cols >= 3:
-        middle_start = num_cols // 2 - 1
-        middle_cols = x_coords[middle_start: middle_start + 3]
-    else:
-        print("Insufficient columns to identify three middle columns.")
-        middle_cols = x_coords  # fallback if there are fewer than 3 columns
+# Create a copy of the sorted object_data to process
+remaining_objects = sorted(object_data, key=lambda obj: (obj['centroid'][0], obj['centroid'][1]))
 
-    # Extract centroids belonging to the three middle columns
-    middle_col_centroids = [c for c in centroids_sorted if int(c[1]) in middle_cols]
+while remaining_objects:
+    # Step 1: Find the most top-left object
+    current_object = remaining_objects.pop(0)  # Get the top-left object
+    current_centroid = current_object['centroid']  # Current centroid (row, col)
+    current_y = current_centroid[0]  # Current y-coordinate (row)
 
-    # Display results
-    print("Middle columns centroids:")
-    for idx, centroid in enumerate(middle_col_centroids, start=1):
-        print(f"{idx}. Centroid coordinates: {centroid}")
+    # Create a new row and add the current object
+    current_row = [current_object]
+    
+    # Step 2: Find objects in the same row (within vertical tolerance)
+    for obj in remaining_objects[:]:  # Use a copy of the list for safe iteration
+        obj_centroid = obj['centroid']
+        obj_y = obj_centroid[0]  # Y-coordinate (row)
+        
+        # Check if this object is within the vertical tolerance
+        if abs(obj_y - current_y) <= vertical_tolerance:
+            current_row.append(obj)
+            remaining_objects.remove(obj)  # Remove from remaining
+    
+    # Step 3: Sort current_row by their x-coordinate (col)
+    current_row.sort(key=lambda obj: obj['centroid'][1])  # Sort by column (x-coordinate)
+    
+    # Add the current row to rows_of_centroids
+    rows_of_centroids.append(current_row)
+
+# Step 4: Extract the three middle centroids from each row
+middle_centroids = []
+
+for row in rows_of_centroids:
+    # Extract the centroids' x-coordinates
+    x_coords = [obj['centroid'][1] for obj in row]  # Extract x-coordinates
+    if len(x_coords) > 0:
+        # Calculate the indices for the three middle centroids
+        mid_index = len(row) // 2
+        mid_centroids = []
+
+        # Determine the range to extract the three middle centroids
+        if len(row) % 2 == 0:  # Even number of centroids
+            mid_centroids = row[mid_index-1:mid_index+2]  # Two centroids on either side
+        else:  # Odd number of centroids
+            mid_centroids = row[mid_index-1:mid_index+2]  # One on the left, one on the right
+
+        middle_centroids.extend(mid_centroids)
+
+# Display the selected middle centroids
+print("Middle centroids from each fuzzy row:")
+for idx, obj in enumerate(middle_centroids, start=1):
+    print(f"{idx}. Object ID: {obj['id']}, Centroid coordinates: {obj['centroid']}")
+    
+    
+# Plotting the labeled image with object IDs
+plt.figure(figsize=(10, 8))
+plt.imshow(color_image)
+plt.title("Labeled Image with Object IDs")
+
+# Annotate the centroids with object IDs
+for obj in middle_centroids:
+    # Get the centroid coordinates and ID
+    centroid = obj['centroid']
+    obj_id = obj['id']
+    
+    # Annotate the image with the object ID at the centroid location
+    plt.annotate(str(obj_id), 
+                 (centroid[1], centroid[0]),  # (col, row)
+                 color='white', 
+                 fontsize=10, 
+                 ha='center', 
+                 va='center',
+                 bbox=dict(facecolor='black', alpha=0.5, boxstyle='round,pad=0.3'))
+
+# Show the plot
+plt.axis('off')  # Hide axes
+plt.show()
