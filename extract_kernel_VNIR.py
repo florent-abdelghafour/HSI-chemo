@@ -182,32 +182,45 @@ for row in rows_of_centroids:
 
         middle_centroids.extend(mid_centroids)
 
-# Display the selected middle centroids
-print("Middle centroids from each fuzzy row:")
-for idx, obj in enumerate(middle_centroids, start=1):
-    print(f"{idx}. Object ID: {obj['id']}, Centroid coordinates: {obj['centroid']}")
+# # Display the selected middle centroids
+# print("Middle centroids from each fuzzy row:")
+# for idx, obj in enumerate(middle_centroids, start=1):
+#     print(f"{idx}. Object ID: {obj['id']}, Centroid coordinates: {obj['centroid']}")
     
     
-# Plotting the labeled image with object IDs
-plt.figure(figsize=(10, 8))
-plt.imshow(color_image)
-plt.title("Labeled Image with Object IDs")
+# # Plotting the labeled image with object IDs
+# plt.figure(figsize=(10, 8))
+# plt.imshow(color_image)
+# plt.title("Labeled Image with Object IDs")
 
-# Annotate the centroids with object IDs
-for obj in middle_centroids:
-    # Get the centroid coordinates and ID
-    centroid = obj['centroid']
-    obj_id = obj['id']
+# # Annotate the centroids with object IDs
+# for obj in middle_centroids:
+#     # Get the centroid coordinates and ID
+#     centroid = obj['centroid']
+#     obj_id = obj['id']
     
-    # Annotate the image with the object ID at the centroid location
-    plt.annotate(str(obj_id), 
-                 (centroid[1], centroid[0]),  # (col, row)
-                 color='white', 
-                 fontsize=10, 
-                 ha='center', 
-                 va='center',
-                 bbox=dict(facecolor='black', alpha=0.5, boxstyle='round,pad=0.3'))
+#     # Annotate the image with the object ID at the centroid location
+#     plt.annotate(str(obj_id), 
+#                  (centroid[1], centroid[0]),  # (col, row)
+#                  color='white', 
+#                  fontsize=10, 
+#                  ha='center', 
+#                  va='center',
+#                  bbox=dict(facecolor='black', alpha=0.5, boxstyle='round,pad=0.3'))
 
-# Show the plot
-plt.axis('off')  # Hide axes
-plt.show()
+# # Show the plot
+# plt.axis('off')  # Hide axes
+# plt.show()
+
+object_folder = os.path.join(main_data_folder, 'object')
+object_file = 'object_data.pkl'
+
+# Create the object folder if it doesn't exist
+os.makedirs(object_folder, exist_ok=True)
+
+# Full path for saving the file
+file_path = os.path.join(object_folder, object_file)
+
+# Save the ordered dictionary to a file using pickle
+with open(file_path, 'wb') as f:
+    pickle.dump(middle_centroids, f)
