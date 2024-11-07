@@ -62,6 +62,7 @@ class HsiReader:
         self.current_metadata = None
         self.current_idx = None
         self.hypercube = None  
+        self.current_name =None
 
         
     def read_image(self, idx):
@@ -83,7 +84,8 @@ class HsiReader:
             self.current_metadata = metadata  # Store the metadata
             self.current_image = img  # Store the image object for later loading
             self.current_idx = idx  # Track which image is currently read
-
+            self.current_name = os.path.splitext(os.path.basename(data_path))[0]
+             
         except Exception as e:
             print(f"Error reading {data_path} and {hdr_path}: {e}")
             self.current_metadata = None
