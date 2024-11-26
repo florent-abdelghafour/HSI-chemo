@@ -20,7 +20,7 @@ from skimage.measure import label
 """
 
 # Define the path to the main data folder: code will iterate trough relvant files
-main_data_folder = "D:/VNIR_barley"
+main_data_folder = "D:/HSI data/VNIR_barley"
 default_colors = plt.rcParams['axes.prop_cycle'].by_key()['color']     
 
 # Initialize the HSI dataset and define file extension: contains all paths of hdr and data files
@@ -49,8 +49,8 @@ HSIreader = HsiReader(dataset)
 nb_pca_comp =3
 pca = PCA(n_components=nb_pca_comp)
 slice_step = 1000
-min_kernel_size=500
 pc_comp_ref=0 ## component that shows best the ref
+
 # # size of median filter, deal with dead pixels and spikes
 # filter_size=(7, 7, 1)
 
@@ -82,7 +82,7 @@ for idx in range(len(dataset)):
     pca_scores_imgs = []
     for start_row in range(0, n_rows, slice_step):
         end_row = min(start_row + slice_step, n_rows)
-        subcube = hsi[start_row:end_row, :, :]
+        subcube = hsi[start_row:end_row, :, :] 
         
         subcube_flat =subcube.reshape(-1, n_channels)
         pca_scores = np.dot(subcube_flat, pca_loadings)
@@ -116,9 +116,9 @@ for idx in range(len(dataset)):
     y_max, x_max = coordinates.max(axis=0)  
     bbox_spectralon = (x_min, y_min, x_max, y_max)
     spectralon = hsi[y_min:y_max, :, :]
+    # spectralon = median_filter(spectralon, size=filter_size)
     avg_spectralon = np.mean(spectralon, axis=0).astype(np.uint16)
-
-    # avg_spectralon_expanded = median_filter(avg_spectralon_expanded, size=filter_size)
+    
     
     # plt.figure()
     # for i in range (avg_spectralon.shape[0]):
@@ -126,17 +126,13 @@ for idx in range(len(dataset)):
     # plt.show()
 
     foreground_mask_3d = np.repeat(foreground_mask[:, :, np.newaxis], hsi.shape[2], axis=2)
-   
-    # reference_mask_3d = np.repeat(reference_mask[:, :, np.newaxis], hsi.shape[2], axis=2)
-    # background_mask_3d = np.repeat(background_mask[:, :, np.newaxis], hsi.shape[2], axis=2)
-
-
+    
     hypercube_slices = []
-    for start_row in range(0, n_rows, slice_step):
-        
-        
+    for start_row in range(0, n_rows, slice_step):  
         end_row = min(start_row + slice_step, n_rows)
         subcube = (hsi[start_row:end_row, :, :]).astype(np.float32)
+        # subcube = median_filter(subcube, size=filter_size)
+         
          # adapt the casting in rows  to slice size , in order to have col-wise divide
         spectralon_size = min(slice_step, subcube.shape[0])
         avg_spectralon_expanded = np.repeat(avg_spectralon[np.newaxis, :, :], spectralon_size, axis=0)

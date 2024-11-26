@@ -54,6 +54,9 @@ pc_comp_ref=0
 # size of median filter, deal with dead pixels and spikes
 filter_size=(7, 7, 1)
 
+#if true correct only foreground, ref = 1 & background = 0
+mask_foreground=True
+
 # Loop through each hyperspectral image in the dataset
 for idx in range(len(dataset)):  
     HSIreader.read_image(idx) #reads without loading! to get metadata
@@ -155,16 +158,19 @@ for idx in range(len(dataset)):
     
 ##############################################################################################
 ##############################################################################################    
-    
-    #correct image from spectralon,  per column
-    avg_spectralon_expanded = np.repeat(avg_spectralon[np.newaxis, :, :], hypercube.shape[0], axis=0)
-    hypercube[foreground_mask] /= avg_spectralon_expanded[foreground_mask]
-    
-    #replace background by spectral zeros and ref by spectral ones
-    hypercube[background_mask,:] = np.zeros(hypercube.shape[2], dtype=hypercube.dtype)
-    hypercube[reference_mask,:] = np.ones(hypercube.shape[2], dtype=hypercube.dtype)
+    if mask_foreground == True:
+        #correct image from spectralon,  per column
+        avg_spectralon_expanded = np.repeat(avg_spectralon[np.newaxis, :, :], hypercube.shape[0], axis=0)
+        hypercube[foreground_mask] /= avg_spectralon_expanded[foreground_mask]
+        
+        #replace background by spectral zeros and ref by spectral ones
+        hypercube[background_mask,:] = np.zeros(hypercube.shape[2], dtype=hypercube.dtype)
+        hypercube[reference_mask,:] = np.ones(hypercube.shape[2], dtype=hypercube.dtype)
+    else:
+        hypercube/= avg_spectralon_expanded
+        
  
-    hypercube = (65535*(hypercube)).astype(np.uint16) 
+    hypercube = np.clip(hypercube * 65535, 0, 65535).astype(np.uint16)
     
     # save new corrected image in new folder with corresponding header
     base_filename = os.path.splitext(os.path.basename(HSIreader.dataset[idx]['data']))[0]

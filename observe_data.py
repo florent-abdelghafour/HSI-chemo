@@ -8,9 +8,9 @@ from sklearn.decomposition import PCA
 
 
 # Define the path to the main data folder: code will iterate trough relvant files
-main_data_folder = 'D:/VNIR_barley' 
+main_data_folder = 'D:/HSI data/VNIR_barley' 
 # D:/HSI data/Barley_ground_30cm_SWIR
-# 'D:/VNIR_barley' 
+# 'D:/HSI data/VNIR_barley' 
 
 dataset =HsiDataset(main_data_folder,data_ext='ref')
 nb_images = len(dataset)
