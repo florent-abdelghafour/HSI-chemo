@@ -361,39 +361,3 @@ class HsiReader:
         return pca_scores_img
     
 
-def color_labels(labeled_image):
-    num_colors = len(np.unique(labeled_image)) - 2  
-    colors = generate_custom_colors(num_colors)
-    # Initialize a color image
-    color_image = np.zeros((labeled_image.shape[0], labeled_image.shape[1], 3))
-
-    # Set color for label 0 (black)
-    color_image[labeled_image == 0] = [0, 0, 0]
-
-    # Set color for label 1 (white)
-    color_image[labeled_image == 1] = [0.5, 0.5, 0.5]
-
-    # Create a palette for other labels
-    unique_labels = np.unique(labeled_image)
-    for label_value in unique_labels:
-        if label_value > 1:
-            color_idx = (label_value - 2) % num_colors  # Ensure index is within range
-            color_image[labeled_image == label_value] = colors[color_idx]
-    
-    
-    return color_image
-
-from matplotlib.colors import hsv_to_rgb
-def generate_custom_colors(num_colors):
-    """
-    Generate a list of diverse colors using HSL color space.
-    """
-    colors = []
-    np.random.seed(0)  # For reproducibility
-    for _ in range(num_colors):
-        hue = np.random.rand()  # Random hue value between 0 and 1
-        saturation = np.random.uniform(0.5, 0.9)  # Random saturation to avoid too pure colors
-        lightness = np.random.uniform(0.3, 0.7)  # Random lightness to avoid too bright or dark colors
-        color = hsv_to_rgb([hue, saturation, lightness])  # Convert to RGB
-        colors.append(color)
-    return colors

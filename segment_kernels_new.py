@@ -7,7 +7,6 @@ from skimage.filters import threshold_multiotsu
 from scipy.ndimage import binary_fill_holes
 from skimage.morphology import remove_small_objects
 from skimage.measure import label, regionprops
-from scipy.spatial.distance import cdist
 
 import json
 
@@ -38,7 +37,6 @@ slice_step = 1000
 
 kernel_comp=1
 min_kernel_size = 1000
-padding=50
 horizontal_tolerance =100
 
 for idx in range(len(dataset)):
@@ -136,10 +134,10 @@ for idx in range(len(dataset)):
         min_row, min_col, max_row, max_col = region.bbox
         
         # Expand the bounding box by padding, ensuring it stays within the image boundaries
-        min_row = max(0, min_row - padding)
-        min_col = max(0, min_col - padding)
-        max_row = min(hsi.shape[0], max_row + padding)
-        max_col = min(hsi.shape[1], max_col + padding)
+        min_row = max(0, min_row )
+        min_col = max(0, min_col)
+        max_row = min(hsi.shape[0], max_row)
+        max_col = min(hsi.shape[1], max_col)
         
         # Store in dictionary
         object_data.append({
@@ -149,28 +147,135 @@ for idx in range(len(dataset)):
             'bbox': (min_row, min_col, max_row, max_col)  # Store the expanded bounding box
         })
 
-   
-    # object_data  = grid_sort(object_data,horizontal_tolerance)
-    # max_col = max(obj['grid_coord'][1] for obj in object_data)
-    # filtered_objects = [obj for obj in object_data if obj['grid_coord'][1] > max_col - 3]
+    object_data,coord_to_obj  = grid_sort(object_data,horizontal_tolerance)
+    
+    # #Check if kernel numbering is OK 
+    # plt.figure(figsize=(10, 8))
+    # plt.imshow(color_image)
 
+    # # Step 5: Assign ID to each object and annotate
+    # for i, obj in enumerate(object_data):
+    #     obj['id'] = i + 1  # Assign the ID (index + 1)
+    #     centroid = obj['centroid']  # Get the centroid (y, x) of the object
+    #     row, col = obj['grid_coord']  # Get the row and column index
+        
+    #     # # Annotate the object with its ID at the centroid location
+    #     # plt.text(centroid[1], centroid[0], f'{obj["id"]}', 
+    #     #         color='white', fontsize=8, ha='center', va='center',
+    #     #         fontweight='bold', bbox=dict(facecolor='black', alpha=0.7, boxstyle='round,pad=0.5'))
+        
+    #     plt.text(centroid[1], centroid[0], f'{row},{col}', 
+    #             color='white', fontsize=8, ha='center', va='center',
+    #             fontweight='bold', bbox=dict(facecolor='black', alpha=0.7, boxstyle='round,pad=0.5'))
 
+    # # Display the image with annotations
+    # plt.title("Annotated Image with Object IDs")
+    # plt.axis('off')  # Hide axes for better visualization
+    # plt.show()
+    
+
+    total_horizontal_distance = 0
+    total_vertical_distance = 0
+    num_pairs = len(object_data) - 1
+    
+    for i in range(num_pairs):
+        centroid1 = object_data[i]['centroid']
+        centroid2 = object_data[i + 1]['centroid']
+        total_horizontal_distance += abs(centroid1[1] - centroid2[1]) 
+        total_vertical_distance += abs(centroid1[0] - centroid2[0])
+    
+    mean_horizontal_distance = total_horizontal_distance / num_pairs
+    mean_vertical_distance = total_vertical_distance / num_pairs
+    
+    horizontal_threshold = mean_horizontal_distance * 0.5  
+    vertical_threshold = mean_vertical_distance * 0.5  
+    
+    clusters = []  
+    visited = set()  
+    
+    for obj in object_data:
+        if obj['id'] in visited:
+            continue 
+        cluster = [obj]
+        visited.add(obj['id'])
+        queue = [obj]
+    
+        while queue:
+            ref_obj = queue.pop(0)
+            ref_row, ref_col = ref_obj['grid_coord']
+            ref_centroid = ref_obj['centroid']
+    
+            # Check neighbors within row ± 1, col ± 1
+            for dr in [-1, 0, 1]:  # Row offsets
+                for dc in [-1, 0, 1]:  # Column offsets
+                    neighbor_coord = (ref_row + dr, ref_col + dc)
+                    if neighbor_coord == (ref_row, ref_col):  # Skip the reference object itself
+                        continue
+                    
+                neighbor = coord_to_obj.get(neighbor_coord)
+                if neighbor and neighbor['id'] not in visited:
+                    neighbor_centroid = neighbor['centroid']
+                    
+                    h = abs(ref_centroid[1] - neighbor_centroid[1])  
+                    v = abs(ref_centroid[0] - neighbor_centroid[0])  
+                    
+                    if h <= horizontal_threshold and v <= vertical_threshold:
+                        # Add the neighbor to the cluster
+                        cluster.append(neighbor)
+                        visited.add(neighbor['id'])
+                        queue.append(neighbor) 
+                        
+        clusters.append(cluster)
+            
+# for i, cluster in enumerate(clusters):
+#     print(f"Cluster {i + 1}:")
+#     for obj in cluster:
+#         print(f"  Object ID: {obj['id']}, Grid Coord: {obj['grid_coord']}, Centroid: {obj['centroid']}")               
+                
+    
+    merged_object_data = [] 
+    for i,cluster in enumerate(clusters):
+        if len(cluster) == 1:
+            # Single object cluster, no need to merge
+            merged_object_data.append(cluster[0])
+            merged_object['id']=i+1
+         
+            continue
+
+        merged_pixel_coords = []
+        for obj in cluster:
+            if len(merged_pixel_coords) == 0:
+                merged_pixel_coords = obj['pixels']
+            else:
+                merged_pixel_coords = np.vstack([merged_pixel_coords, obj['pixels']])
+        merged_centroid = np.mean(merged_pixel_coords, axis=0)
+
+        # Merge bounding box (as before) - calculate min/max coordinates for the new bounding box
+        x_min, y_min = np.min(merged_pixel_coords, axis=0)
+        x_max, y_max = np.max(merged_pixel_coords, axis=0)
+        # Create merged object
+        merged_object = {
+            'id': i+1,
+            'centroid': merged_centroid,
+            'bbox': [x_min, y_min, x_max, y_max],
+            'grid_coord': cluster[0]['grid_coord'],  # Take the grid_coord of the first object
+            'original_objects': [obj['id'] for obj in cluster],  # Keep track of merged IDs
+            'pixels': merged_pixel_coords  # Store the merged pixels (optional)
+        }
+        # Add merged object to the list
+        merged_object_data.append(merged_object)    
+       
+        
+  
     # #Check if kernel numbering is OK 
     plt.figure(figsize=(10, 8))
     plt.imshow(color_image)
 
     # Step 5: Assign ID to each object and annotate
-    for i, obj in enumerate(object_data):
-        obj['id'] = i + 1  # Assign the ID (index + 1)
+    for obj in merged_object_data:
         centroid = obj['centroid']  # Get the centroid (y, x) of the object
-        row, col = obj['grid_coord']  # Get the row and column index
-        
-        # # Annotate the object with its ID at the centroid location
-        # plt.text(centroid[1], centroid[0], f'{obj["id"]}', 
-        #         color='white', fontsize=8, ha='center', va='center',
-        #         fontweight='bold', bbox=dict(facecolor='black', alpha=0.7, boxstyle='round,pad=0.5'))
-        
-        plt.text(centroid[1], centroid[0], f'{row},{col}', 
+        # Annotate the object with its ID at the centroid location
+        plt.text(centroid[1], centroid[0], f"{obj['id']}", 
                 color='white', fontsize=8, ha='center', va='center',
                 fontweight='bold', bbox=dict(facecolor='black', alpha=0.7, boxstyle='round,pad=0.5'))
 
@@ -179,59 +284,6 @@ for idx in range(len(dataset)):
     plt.axis('off')  # Hide axes for better visualization
     plt.show()
     
-    
-    
-    
-  
-    # total_distance = 0
-    # num_pairs = len(object_data) - 1
-    
-    # for i in range(num_pairs):
-    #     centroid1 = object_data[i]['centroid']
-    #     centroid2 = object_data[i + 1]['centroid']
-    #     distance = ((centroid1[0] - centroid2[0]) ** 2 + (centroid1[1] - centroid2[1]) ** 2) ** 0.5
-    #     total_distance += distance
-    # mean_distance = total_distance / num_pairs
-    
-
-    # merge_range = 5  
-    # abnormal_threshold = mean_distance * 0.5
-    # bad_apples =[]
-    # dist=[]
-    
-    # for k, obj in enumerate(object_data):
-    #     centroid_k = obj['centroid']
-   
-    #     for offset in range(-merge_range, merge_range + 1):
-    #         # Skip self-comparison and ensure index is in range
-    #         neighbor_idx = k + offset
-    #         if offset == 0 or not (0 <= neighbor_idx < len(object_data)):
-    #             continue
-
-    #         # Compute the distance
-    #         neighbor = object_data[neighbor_idx]
-    #         centroid_neighbor = neighbor['centroid']
-    #         distance = (2*(centroid_k[0] - centroid_neighbor[0]) ** 2 + 
-    #                     (centroid_k[1] - centroid_neighbor[1]) ** 2) ** 0.5
-
-    #         # Check if the distance is abnormal
-    #         if distance < abnormal_threshold:
-    #             bad_apples.append(neighbor['centroid'])
-    #             dist.append(distance)
-                
-    # plt.figure(figsize=(10, 8))
-    # plt.imshow(color_image)
-
-    # # Overlay an 'X' on each bad apple's centroid
-    # for centroid in bad_apples:
-    #     plt.plot(centroid[1], centroid[0], 'x', color='red', markersize=10, markeredgewidth=2)
-
-    # # Add a title and hide the axes for clarity
-    # plt.title("Bad Apples Identified")
-    # plt.axis('off')  # Hide axes for better visualization
-    # plt.show()
-            
-
 
 
 
