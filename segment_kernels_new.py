@@ -173,23 +173,10 @@ for idx in range(len(dataset)):
     # plt.axis('off')  # Hide axes for better visualization
     # plt.show()
     
-
-    total_horizontal_distance = 0
-    total_vertical_distance = 0
-    num_pairs = len(object_data) - 1
     
-    for i in range(num_pairs):
-        centroid1 = object_data[i]['centroid']
-        centroid2 = object_data[i + 1]['centroid']
-        total_horizontal_distance += abs(centroid1[1] - centroid2[1]) 
-        total_vertical_distance += abs(centroid1[0] - centroid2[0])
-    
-    mean_horizontal_distance = total_horizontal_distance / num_pairs
-    mean_vertical_distance = total_vertical_distance / num_pairs
-    
-    horizontal_threshold = mean_horizontal_distance * 0.5  
-    vertical_threshold = mean_vertical_distance * 0.5  
-    
+    horizontal_threshold = 100
+    vertical_threshold = 300
+ 
     clusters = []  
     visited = set()  
     
@@ -204,33 +191,27 @@ for idx in range(len(dataset)):
             ref_obj = queue.pop(0)
             ref_row, ref_col = ref_obj['grid_coord']
             ref_centroid = ref_obj['centroid']
-    
-            # Check neighbors within row ± 1, col ± 1
-            for dr in [-1, 0, 1]:  # Row offsets
-                for dc in [-1, 0, 1]:  # Column offsets
-                    neighbor_coord = (ref_row + dr, ref_col + dc)
-                    if neighbor_coord == (ref_row, ref_col):  # Skip the reference object itself
-                        continue
-                    
-                neighbor = coord_to_obj.get(neighbor_coord)
-                if neighbor and neighbor['id'] not in visited:
-                    neighbor_centroid = neighbor['centroid']
-                    
-                    h = abs(ref_centroid[1] - neighbor_centroid[1])  
-                    v = abs(ref_centroid[0] - neighbor_centroid[0])  
-                    
-                    if h <= horizontal_threshold and v <= vertical_threshold:
-                        # Add the neighbor to the cluster
-                        cluster.append(neighbor)
-                        visited.add(neighbor['id'])
-                        queue.append(neighbor) 
+
+            for candidate in object_data:  
+                if candidate['id'] in visited:
+                    continue        
+                candidate_centroid = candidate['centroid']
+                h = abs(ref_centroid[1] - candidate_centroid[1])  
+                v = abs(ref_centroid[0] - candidate_centroid[0])  
+                                             
+                if h <= horizontal_threshold and v <= vertical_threshold:
+                    # Add the neighbor to the cluster
+                    cluster.append(candidate)
+                    visited.add(candidate['id'])
+                    queue.append(candidate) 
                         
         clusters.append(cluster)
+    print(len(clusters))
             
-# for i, cluster in enumerate(clusters):
-#     print(f"Cluster {i + 1}:")
-#     for obj in cluster:
-#         print(f"  Object ID: {obj['id']}, Grid Coord: {obj['grid_coord']}, Centroid: {obj['centroid']}")               
+    # for i, cluster in enumerate(clusters):
+    #     print(f"Cluster {i + 1}:")
+    #     for obj in cluster:
+    #         print(f"  Object ID: {obj['id']}, Grid Coord: {obj['grid_coord']}, Centroid: {obj['centroid']}")               
                 
     
     merged_object_data = [] 
@@ -238,9 +219,7 @@ for idx in range(len(dataset)):
         if len(cluster) == 1:
             merged_object =cluster[0]
             merged_object['id']=i+1
-            merged_object_data.append(merged_object)
-            
-         
+            merged_object_data.append(merged_object)  
             continue
 
         merged_pixel_coords = []
@@ -278,7 +257,7 @@ for idx in range(len(dataset)):
         # Annotate the object with its ID at the centroid location
         plt.text(centroid[1], centroid[0], f"{obj['id']}", 
                 color='white', fontsize=8, ha='center', va='center',
-                fontweight='bold', bbox=dict(facecolor='black', alpha=0.7, boxstyle='round,pad=0.5'))
+                fontweight='bold', bbox=dict(facecolor='black', alpha=0.7, boxstyle='round,pad=0.5'));
 
     # Display the image with annotations
     plt.title("Annotated Image with Object IDs")
