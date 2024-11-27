@@ -236,9 +236,10 @@ for idx in range(len(dataset)):
     merged_object_data = [] 
     for i,cluster in enumerate(clusters):
         if len(cluster) == 1:
-            # Single object cluster, no need to merge
-            merged_object_data.append(cluster[0])
+            merged_object =cluster[0]
             merged_object['id']=i+1
+            merged_object_data.append(merged_object)
+            
          
             continue
 
