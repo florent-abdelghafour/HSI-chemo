@@ -1,5 +1,79 @@
 from matplotlib.colors import hsv_to_rgb
+from sklearn.decomposition import PCA
 import numpy as np
+
+
+
+def project_hsi_VNIR(HSIreader, slice_step, n_samples=50000, nb_pca_comp=3, return_loadings=False):
+    """
+    Applies PCA to a hyperspectral image (HSI) in a memory-efficient manner.
+    
+    Parameters:
+        HSIreader (object): Reader object providing access to the current HSI via `HSIreader.current_image`
+            and the ability to extract pixel data via `HSIreader.extract_pixels(coords)`.
+        hsi (ndarray): Hyperspectral image with shape (n_rows, n_cols, n_channels).
+        pca (object): Pre-fitted PCA model with `fit_transform` and `components_` methods.
+        slice_step (int): Number of rows to process in each slice for memory efficiency.
+        n_samples (int): Number of random samples for PCA fitting. Default is 50000.
+        nb_pca_comp (int): Number of PCA components to retain. If None, all components are used.
+    
+    Returns:
+        final_pca_scores_img (ndarray): PCA-transformed image with shape (n_rows, n_cols, nb_pca_comp).
+        pca_scores (ndarray): PCA scores for the sampled spectral data.
+        pca_loadings (ndarray): PCA loadings matrix.
+    """
+    # Get image dimensions
+    
+    hsi=HSIreader.current_image
+    n_rows, n_cols, n_channels = hsi.shape
+    
+    # Randomly sample spectral data for PCA fitting
+    x_idx = np.random.randint(0, n_cols, size=n_samples)
+    y_idx = np.random.randint(0, n_rows, size=n_samples)
+    coords = list(zip(y_idx, x_idx))
+    spectral_samples = np.array(HSIreader.extract_pixels(coords))
+    
+    # Fit PCA and calculate loadings
+    pca = PCA(n_components=nb_pca_comp)
+    pca_scores = pca.fit_transform(spectral_samples)
+    pca_loadings = pca.components_.T * np.sqrt(pca.explained_variance_)
+    
+    # Retain only the desired number of PCA components
+    if nb_pca_comp is not None:
+        pca_loadings = pca_loadings[:, :nb_pca_comp]
+    
+    # Process the HSI slice by slice
+    pca_scores_imgs = []
+    for start_row in range(0, n_rows, slice_step):
+        end_row = min(start_row + slice_step, n_rows)
+        subcube = hsi[start_row:end_row, :, :]
+        
+        # Flatten the subcube and apply PCA transformation
+        subcube_flat = subcube.reshape(-1, n_channels)
+        pca_scores = np.dot(subcube_flat, pca_loadings)
+        pca_scores_img = pca_scores.reshape(end_row - start_row, n_cols, pca_loadings.shape[1])
+        pca_scores_imgs.append(pca_scores_img)
+        
+        # Clean up for memory efficiency
+        del subcube, subcube_flat, pca_scores, pca_scores_img
+
+    # Combine all slices into the final PCA-transformed image
+    final_pca_scores_img = np.concatenate(pca_scores_imgs, axis=0)
+    del pca_scores_imgs
+    
+    if return_loadings ==True:
+        return final_pca_scores_img,pca_loadings
+    else:
+        return final_pca_scores_img
+    
+   
+   
+
+
+
+
+
+
 
 def grid_sort(object_data, horizontal_tolerance):
     """
@@ -50,6 +124,88 @@ def grid_sort(object_data, horizontal_tolerance):
         obj['id']=i
         
     return object_data,coord_to_obj
+
+
+
+def merge_clusters(object_data, horizontal_threshold=100, vertical_threshold=300):
+    """
+    Clusters objects based on proximity thresholds and merges clusters into new objects.
+    
+    Parameters:
+        object_data (list): List of objects, each containing 'id', 'grid_coord', 'centroid', and 'pixels'.
+        horizontal_threshold (int): Horizontal proximity threshold for clustering.
+        vertical_threshold (int): Vertical proximity threshold for clustering.
+    
+    Returns:
+        list: Merged object data with updated attributes.
+    """
+    clusters = []  
+    visited = set()  
+    
+    # Clustering based on proximity thresholds
+    for obj in object_data:
+        if obj['id'] in visited:
+            continue 
+        cluster = [obj]
+        visited.add(obj['id'])
+        queue = [obj]
+    
+        while queue:
+            ref_obj = queue.pop(0)
+            ref_centroid = ref_obj['centroid']
+
+            for candidate in object_data:  
+                if candidate['id'] in visited:
+                    continue        
+                candidate_centroid = candidate['centroid']
+                h = abs(ref_centroid[1] - candidate_centroid[1])  
+                v = abs(ref_centroid[0] - candidate_centroid[0])  
+                                             
+                if h <= horizontal_threshold and v <= vertical_threshold:
+                    # Add the neighbor to the cluster
+                    cluster.append(candidate)
+                    visited.add(candidate['id'])
+                    queue.append(candidate) 
+                        
+        clusters.append(cluster)
+
+    print(f"Number of clusters formed: {len(clusters)}")
+    
+    # Merging clusters into single objects
+    merged_object_data = [] 
+    for i, cluster in enumerate(clusters):
+        if len(cluster) == 1:
+            merged_object = cluster[0]
+            merged_object['id'] = i + 1
+            merged_object_data.append(merged_object)  
+            continue
+
+        merged_pixel_coords = []
+        for obj in cluster:
+            if len(merged_pixel_coords) == 0:
+                merged_pixel_coords = obj['pixels']
+            else:
+                merged_pixel_coords = np.vstack([merged_pixel_coords, obj['pixels']])
+        merged_centroid = np.mean(merged_pixel_coords, axis=0)
+
+        # Merge bounding box - calculate min/max coordinates for the new bounding box
+        x_min, y_min = np.min(merged_pixel_coords, axis=0)
+        x_max, y_max = np.max(merged_pixel_coords, axis=0)
+
+        # Create merged object
+        merged_object = {
+            'id': i + 1,
+            'centroid': merged_centroid,
+            'bbox': [x_min, y_min, x_max, y_max],
+            'grid_coord': cluster[0]['grid_coord'],  # Take the grid_coord of the first object
+            'original_objects': [obj['id'] for obj in cluster],  # Keep track of merged IDs
+            'pixels': merged_pixel_coords  # Store the merged pixels (optional)
+        }
+        # Add merged object to the list
+        merged_object_data.append(merged_object)
+    
+    return merged_object_data
+
 
 
 
