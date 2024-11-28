@@ -41,6 +41,7 @@ h_t=100 # horizontal_threshold
 v_t=300 # vertical_threshold
 
 for idx in range(len(dataset)):
+   if idx==1: 
     HSIreader.read_image(idx) #reads without loading! to get metadata
     metadata = HSIreader.current_metadata
     
@@ -145,33 +146,33 @@ for idx in range(len(dataset)):
     merged_object_data = [obj for obj in merged_object_data if obj['grid_coord'][1] > n_cols - 3]
     
 
-    # # #Check if kernel numbering is OK after merging
-    # plt.figure(figsize=(10, 8))
-    # plt.imshow(color_image)
+    # #Check if kernel numbering is OK after merging
+    plt.figure(figsize=(10, 8))
+    plt.imshow(color_image)
 
-    # # Step 5: Assign ID to each object and annotate
-    # for obj in merged_object_data:
-    #     centroid = obj['centroid']  # Get the centroid (y, x) of the object
-    #     # Annotate the object with its ID at the centroid location
-    #     plt.text(centroid[1], centroid[0], f"{obj['id']}", 
-    #             color='white', fontsize=8, ha='center', va='center',
-    #             fontweight='bold', bbox=dict(facecolor='black', alpha=0.7, boxstyle='round,pad=0.5'));
+    # Step 5: Assign ID to each object and annotate
+    for obj in merged_object_data:
+        centroid = obj['centroid']  # Get the centroid (y, x) of the object
+        # Annotate the object with its ID at the centroid location
+        plt.text(centroid[1], centroid[0], f"{obj['id']}", 
+                color='white', fontsize=8, ha='center', va='center',
+                fontweight='bold', bbox=dict(facecolor='black', alpha=0.7, boxstyle='round,pad=0.5'));
 
-    # # Display the image with annotations
-    # plt.title("Annotated Image with Object IDs")
-    # plt.axis('off')  # Hide axes for better visualization
-    # plt.show()
+    # Display the image with annotations
+    plt.title("Annotated Image with Object IDs")
+    plt.axis('off')  # Hide axes for better visualization
+    plt.show()
     
 
-    for i, obj in enumerate(merged_object_data):
-        obj['id'] = i + 1  # Assign the ID (index + 1)
-        merged_object_data[i] = convert_to_native_types(obj)
+    # for i, obj in enumerate(merged_object_data):
+    #     obj['id'] = i + 1  # Assign the ID (index + 1)
+    #     merged_object_data[i] = convert_to_native_types(obj)
 
-    kernel_file_path = main_data_folder+ f'/kernel_data/{image_name}'
-    if not os.path.exists(kernel_file_path ):
-        os.makedirs(kernel_file_path) 
-    with open(kernel_file_path+'/kernel.json', 'w') as json_file:
-            json.dump(merged_object_data, json_file, indent=4)
+    # kernel_file_path = main_data_folder+ f'/kernel_data/{image_name}'
+    # if not os.path.exists(kernel_file_path ):
+    #     os.makedirs(kernel_file_path) 
+    # with open(kernel_file_path+'/kernel.json', 'w') as json_file:
+    #         json.dump(merged_object_data, json_file, indent=4)
 
 
 

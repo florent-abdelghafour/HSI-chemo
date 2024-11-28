@@ -245,3 +245,20 @@ def generate_custom_colors(num_colors):
         color = hsv_to_rgb([hue, saturation, lightness])  # Convert to RGB
         colors.append(color)
     return colors
+
+
+
+def convert_to_native_types(obj):
+    """Recursively convert numpy types, arrays, and other complex types to native Python types."""
+    if isinstance(obj, np.ndarray):
+        return obj.tolist()  # Convert numpy arrays to lists
+    elif isinstance(obj, np.generic):
+        return obj.item()  # Convert numpy scalar types to native Python types
+    elif isinstance(obj, tuple):
+        return tuple(convert_to_native_types(item) for item in obj)  # Convert tuples recursively
+    elif isinstance(obj, dict):
+        return {key: convert_to_native_types(value) for key, value in obj.items()}  # Recursively convert dicts
+    elif isinstance(obj, list):
+        return [convert_to_native_types(item) for item in obj]  # Recursively convert lists
+    else:
+        return obj 
