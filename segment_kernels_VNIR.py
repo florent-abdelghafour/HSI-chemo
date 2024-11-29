@@ -24,7 +24,7 @@ if os.path.isdir(main_data_folder):
     else:
         print('empty dataset')
 else:
-    print('path invalid')
+    raise FileNotFoundError(f"Invalid path: {main_data_folder}")
 
 
 HSIreader = HsiReader(dataset)
@@ -40,8 +40,7 @@ horizontal_tolerance =100
 h_t=100 # horizontal_threshold 
 v_t=300 # vertical_threshold
 
-for idx in range(len(dataset)):
-   if idx==1: 
+for idx in range(len(dataset)): 
     HSIreader.read_image(idx) #reads without loading! to get metadata
     metadata = HSIreader.current_metadata
     
@@ -145,8 +144,10 @@ for idx in range(len(dataset)):
     n_cols = max(obj['grid_coord'][1] for obj in merged_object_data)
     merged_object_data = [obj for obj in merged_object_data if obj['grid_coord'][1] > n_cols - 3]
     
+    print(len(merged_object_data))
+    
 
-    # #Check if kernel numbering is OK after merging
+    #Check if kernel numbering is OK after merging
     plt.figure(figsize=(10, 8))
     plt.imshow(color_image)
 
@@ -164,15 +165,15 @@ for idx in range(len(dataset)):
     plt.show()
     
 
-    # for i, obj in enumerate(merged_object_data):
-    #     obj['id'] = i + 1  # Assign the ID (index + 1)
-    #     merged_object_data[i] = convert_to_native_types(obj)
+    for i, obj in enumerate(merged_object_data):
+        obj['id'] = i + 1  # Assign the ID (index + 1)
+        merged_object_data[i] = convert_to_native_types(obj)
 
-    # kernel_file_path = main_data_folder+ f'/kernel_data/{image_name}'
-    # if not os.path.exists(kernel_file_path ):
-    #     os.makedirs(kernel_file_path) 
-    # with open(kernel_file_path+'/kernel.json', 'w') as json_file:
-    #         json.dump(merged_object_data, json_file, indent=4)
+    kernel_file_path = main_data_folder+ f'/kernel_data/{image_name}'
+    if not os.path.exists(kernel_file_path ):
+        os.makedirs(kernel_file_path) 
+    with open(kernel_file_path+'/kernel.json', 'w') as json_file:
+            json.dump(merged_object_data, json_file, indent=4)
 
 
 
