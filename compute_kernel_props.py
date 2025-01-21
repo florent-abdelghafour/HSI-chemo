@@ -69,6 +69,7 @@ for idx in range(len(dataset)):
             # Initialize dictionary for the kernel data
             kernel_data = {
                 'id': kernel_id,
+                'grid_coord' :obj['pixels'],
                 'spectral_samples': spectral_samples,
                 'avg_spectrum': avg_spectrum,
                 'haralick_features': {}

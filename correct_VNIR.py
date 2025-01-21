@@ -6,7 +6,7 @@ from hsi_utils import *
 from sklearn.decomposition import PCA
 from skimage.filters import threshold_multiotsu
 from skimage.measure import label
-# from scipy.ndimage import median_filter
+from scipy.ndimage import median_filter
 
 """
     Automatically correct HSI in reflectance from the reference in the image
@@ -52,13 +52,14 @@ slice_step = 1000
 pc_comp_ref=0 ## component that shows best the ref
 
 # # size of median filter, deal with dead pixels and spikes
-# filter_size=(7, 7, 1)
+filter_size=(7, 7, 1)
 
 #if true correct only foreground, ref = 1 & background = 0
 mask_foreground=True
 
 # Loop through each hyperspectral image in the dataset
-for idx in range(len(dataset)):
+for idx in range(len(dataset)): 
+   if idx==0: 
     HSIreader.read_image(idx) #reads without loading! to get metadata
     metadata = HSIreader.current_metadata
     
@@ -120,10 +121,10 @@ for idx in range(len(dataset)):
     avg_spectralon = np.mean(spectralon, axis=0).astype(np.uint16)
     
     
-    # plt.figure()
-    # for i in range (avg_spectralon.shape[0]):
-    #     plt.plot(wv,avg_spectralon[i,:])
-    # plt.show()
+    plt.figure()
+    for i in range (avg_spectralon.shape[0]):
+        plt.plot(wv,avg_spectralon[i,:])
+    plt.show()
 
     foreground_mask_3d = np.repeat(foreground_mask[:, :, np.newaxis], hsi.shape[2], axis=2)
     

@@ -41,6 +41,7 @@ h_t=100 # horizontal_threshold
 v_t=300 # vertical_threshold
 
 for idx in range(len(dataset)): 
+  if idx==0:  
     HSIreader.read_image(idx) #reads without loading! to get metadata
     metadata = HSIreader.current_metadata
     
@@ -113,7 +114,7 @@ for idx in range(len(dataset)):
 
     object_data,coord_to_obj  = grid_sort(object_data,horizontal_tolerance)
     
-    # #Check if kernel numbering is OK 
+    #Check if kernel numbering is OK 
     # plt.figure(figsize=(10, 8))
     # plt.imshow(color_image)
 
@@ -145,7 +146,6 @@ for idx in range(len(dataset)):
     merged_object_data = [obj for obj in merged_object_data if obj['grid_coord'][1] > n_cols - 3]
     
     print(len(merged_object_data))
-    
 
     #Check if kernel numbering is OK after merging
     plt.figure(figsize=(10, 8))
