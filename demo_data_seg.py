@@ -10,7 +10,7 @@ from scipy.ndimage import median_filter
 
 from scipy.ndimage import binary_fill_holes
 from skimage.morphology import remove_small_objects
-
+from skimage.measure import label, regionprops
 
 main_data_folder = 'D:/HSI data/Barley_ground_30cm_SWIR'
 
@@ -69,6 +69,7 @@ for i in range(np.shape(pca_loadings)[1]):
     plt.tight_layout()
     save_file =os.path.join(save_folder,f"{lab}.pdf")
     plt.savefig(save_file)
+    plt.savefig(save_file.replace('.pdf', '.png'), dpi=800)
 plt.show()
 
 plt.figure(figsize=(10, 6))
@@ -84,6 +85,7 @@ plt.grid()
 plt.tight_layout()
 save_file = os.path.join(save_folder, "PCA_Loadings.pdf")
 plt.savefig(save_file)
+plt.savefig(save_file.replace('.pdf', '.png'), dpi=800)
 plt.show()
 
 score_img = HSIreader.project_pca_scores(pca_loadings)
@@ -101,6 +103,7 @@ for i in range(np.shape(pca_loadings)[0]):
     
     save_file = os.path.join(save_folder, f"score_map_pc{i+1}.pdf")
     plt.savefig(save_file)
+    plt.savefig(save_file.replace('.pdf', '.png'), dpi=800)
 plt.show()
 
 thresholds = threshold_multiotsu(score_pc_ref, classes=3)
@@ -136,6 +139,7 @@ plt.grid()
 plt.tight_layout()
 save_file = os.path.join(save_folder, "histogram_scores_PC1.pdf")
 plt.savefig(save_file)
+plt.savefig(save_file.replace('.pdf', '.png'), dpi=800)
 plt.show()
 
 
@@ -164,22 +168,15 @@ for ax, mask, label in zip(axes, masks, labels):
 # Adjust layout
 plt.title('Segmentation binary masks')
 plt.tight_layout()
+save_file = os.path.join(save_folder, f"binary_masks.pdf")
+plt.savefig(save_file)
+plt.savefig(save_file.replace('.pdf', '.png'), dpi=800)
 plt.show()
-
-
-
-
-
-
-
-
 
 ###################################################
 
 
-
-
-
+idx=1
 main_data_folder = 'D:/HSI data/VNIR_barley' 
 dataset =HsiDataset(main_data_folder,data_ext='ref')
 nb_images = len(dataset)
@@ -231,4 +228,98 @@ plt.figure()
 plt.imshow(color_image)
 plt.title('Color-Mapped Labeled Image')
 plt.axis('off')
+save_file = os.path.join(save_folder, f"labelled_image.pdf")
+plt.savefig(save_file)
+plt.savefig(save_file.replace('.pdf', '.png'), dpi=800)
+plt.show()
+
+regions = regionprops(labeled_image)
+print(f"Number of regions found: {len(regions)}")
+object_data = []
+
+for region in regions:
+    # Get the object ID (label)
+    obj_id = region.label
+    
+    # Skip the background (label 0)
+    if obj_id == 0:
+        continue
+    
+    # Filter out regions based on pixel area
+    if region.area < min_kernel_size:
+        continue
+
+    # Get the centroid coordinates
+    centroid = region.centroid
+    
+    # Get the coordinates of all pixels belonging to this object
+    pixel_coords = np.array(region.coords)  # (num_pixels, 2) array
+    
+    # Get the original bounding box of the region
+    min_row, min_col, max_row, max_col = region.bbox
+    
+    # Expand the bounding box by padding, ensuring it stays within the image boundaries
+    min_row = max(0, min_row )
+    min_col = max(0, min_col)
+    max_row = min(hsi.shape[0], max_row)
+    max_col = min(hsi.shape[1], max_col)
+    
+    # Store in dictionary
+    object_data.append({
+        'id': obj_id,
+        'centroid': centroid,
+        'pixels': pixel_coords,
+        'bbox': (min_row, min_col, max_row, max_col)  # Store the expanded bounding box
+    })
+
+object_data,coord_to_obj  = grid_sort(object_data,horizontal_tolerance)
+
+#Check if kernel numbering is OK 
+# plt.figure(figsize=(10, 8))
+# plt.imshow(color_image)
+
+# # Step 5: Assign ID to each object and annotate
+# for i, obj in enumerate(object_data):
+#     obj['id'] = i + 1  # Assign the ID (index + 1)
+#     centroid = obj['centroid']  # Get the centroid (y, x) of the object
+#     row, col = obj['grid_coord']  # Get the row and column index
+    
+#     # # Annotate the object with its ID at the centroid location
+#     # plt.text(centroid[1], centroid[0], f'{obj["id"]}', 
+#     #         color='white', fontsize=8, ha='center', va='center',
+#     #         fontweight='bold', bbox=dict(facecolor='black', alpha=0.7, boxstyle='round,pad=0.5'))
+    
+#     plt.text(centroid[1], centroid[0], f'{row},{col}', 
+#             color='white', fontsize=8, ha='center', va='center',
+#             fontweight='bold', bbox=dict(facecolor='black', alpha=0.7, boxstyle='round,pad=0.5'))
+
+# # Display the image with annotations
+# plt.title("Annotated Image with Object IDs")
+# plt.axis('off')  # Hide axes for better visualization
+# plt.show()
+
+merged_object_data = merge_clusters(object_data, horizontal_threshold=h_t, vertical_threshold=v_t)  
+merged_object_data,_ =grid_sort(merged_object_data,horizontal_tolerance) 
+
+#take last 3 columns
+n_cols = max(obj['grid_coord'][1] for obj in merged_object_data)
+merged_object_data = [obj for obj in merged_object_data if obj['grid_coord'][1] > n_cols - 3]
+
+print(len(merged_object_data))
+
+#Check if kernel numbering is OK after merging
+plt.figure(figsize=(10, 8))
+plt.imshow(color_image)
+
+# Step 5: Assign ID to each object and annotate
+for obj in merged_object_data:
+    centroid = obj['centroid']  # Get the centroid (y, x) of the object
+    # Annotate the object with its ID at the centroid location
+    plt.text(centroid[1], centroid[0], f"{obj['id']}", 
+            color='white', fontsize=8, ha='center', va='center',
+            fontweight='bold', bbox=dict(facecolor='black', alpha=0.7, boxstyle='round,pad=0.5'));
+
+# Display the image with annotations
+plt.title("Annotated Image with Object IDs")
+plt.axis('off')  # Hide axes for better visualization
 plt.show()
