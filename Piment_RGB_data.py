@@ -121,7 +121,7 @@ for key, img in organized_data["recto"].items():
         cmap.set_bad(color='black')  # Define black for NaN values
 
         # Plot and save the transformed image
-        plt.imshow(transformed_image, cmap=cmap)
+        plt.imshow(transformed_image, cmap=cmap,vmin=0, vmax=255)
         plt.axis('off')  # Hide axes
         formula_folder = os.path.join(os.path.dirname(data_root), 'recto', f"formula_{formula_idx}")
         os.makedirs(formula_folder, exist_ok=True)
